@@ -1,5 +1,13 @@
 [![Build Status](https://travis-ci.org/SebKuzminsky/pycam.svg?branch=master)](https://travis-ci.org/SebKuzminsky/pycam)
 
+# About fork
+*WARNING, NOT TESTED*
+Changed GCode exporter to work with most 3d-priter firmware.
+*WARNING 2*: GCode does not include homing.
+User is supposed to set tip of the tool to wherever is X0 Y0 Z0 should be (e.g. corner of wood block)
+Then this position is set as 0,0,0
+That means the models need to be aligned 'z: 0.0 Top' or lower (model fully below z axis) so that printer can start on top of material
+
 # PyCAM: a toolpath generator
 
 PyCAM generates toolpaths (GCode) based on 2D or 3D models for 3-axis CNC machining.

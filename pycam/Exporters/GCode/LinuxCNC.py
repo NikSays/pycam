@@ -23,12 +23,6 @@ from pycam.Toolpath import ToolpathPathMode
 from pycam.workspace import LengthUnit
 
 
-DEFAULT_HEADER = (("G40", "disable tool radius compensation"),
-                  ("G49", "disable tool length compensation"),
-                  ("G80", "cancel modal motion"),
-                  ("G54", "select coordinate system 1"),
-                  ("G90", "disable incremental moves"))
-
 DEFAULT_DIGITS = 6
 
 
@@ -40,13 +34,12 @@ def _render_number(number):
 
 
 class LinuxCNC(pycam.Exporters.GCode.BaseGenerator):
-
+    is_rapid = False
     def add_header(self):
-        for command, comment in DEFAULT_HEADER:
-            self.add_command(command, comment=comment)
+            self.add_command('G92 X0 Y0 Z0', comment='set to zero')
 
     def add_footer(self):
-        self.add_command("M2", "end program")
+        pass
 
     def add_comment(self, comment):
         self.add_command("; %s" % comment)
@@ -60,16 +53,13 @@ class LinuxCNC(pycam.Exporters.GCode.BaseGenerator):
             self.destination.write(os.linesep)
 
     def add_move(self, coordinates, is_rapid=False):
+        self.is_rapid = is_rapid
         components = []
         # the cached value may be:
         #   True: the last move was G0
         #   False: the last move was G1
         #   None: some non-move happened before
-        if self._get_cache("rapid_move", None) != is_rapid:
-            components.append("G0" if is_rapid else "G1")
-        else:
-            # improve gcode style
-            components.append(" ")
+        components.append("G0" if is_rapid else "G1")
         axes = [axis for axis in "XYZABCUVW"]
         previous = self._get_cache("position", [None] * len(coordinates))
         for (axis, value, last) in zip(axes, coordinates, previous):
@@ -80,23 +70,22 @@ class LinuxCNC(pycam.Exporters.GCode.BaseGenerator):
             self.add_command(command)
 
     def command_feedrate(self, feedrate):
-        self.add_command("F%s" % _render_number(feedrate), "set feedrate")
-
+        if self.is_rapid:
+            self.add_command("G0 F{}".format(_render_number(feedrate)), "set feedrate")
+        else:
+            self.add_command("G0 F{}".format(_render_number(feedrate)), "set feedrate")
     def command_select_tool(self, tool_id):
-        self.add_command("T%d M6" % tool_id, "select tool")
+        pass
 
     def command_spindle_speed(self, speed):
-        self.add_command("S%s" % _render_number(speed), "set spindle speed")
+        pass
 
     def command_spindle_enabled(self, state):
-        if state:
-            self.add_command("M3", "start spindle")
-        else:
-            self.add_command("M5", "stop spindle")
+        pass
 
     def command_delay(self, seconds):
         # "seconds" may be floats or integers
-        self.add_command("G04 P{}".format(seconds), "wait for {} seconds".format(seconds))
+        self.add_command("G4 P{}".format(seconds), "wait for {} seconds".format(seconds))
 
     def command_unit(self, unit):
         if unit == LengthUnit.METRIC_MM:
@@ -107,18 +96,4 @@ class LinuxCNC(pycam.Exporters.GCode.BaseGenerator):
             assert False, "Invalid unit requested: {}".format(unit)
 
     def command_corner_style(self, extra_args):
-        path_mode, motion_tolerance, naive_tolerance = extra_args
-        if path_mode == ToolpathPathMode.CORNER_STYLE_EXACT_PATH:
-            self.add_command("G61", "exact path mode")
-        elif path_mode == ToolpathPathMode.CORNER_STYLE_EXACT_STOP:
-            self.add_command("G61.1", "exact stop mode")
-        elif path_mode == ToolpathPathMode.CORNER_STYLE_OPTIMIZE_SPEED:
-            self.add_command("G64", "continuous mode with maximum speed")
-        elif path_mode == ToolpathPathMode.CORNER_STYLE_OPTIMIZE_TOLERANCE:
-            if not naive_tolerance:
-                self.add_command("G64 P%f" % motion_tolerance, "continuous mode with tolerance")
-            else:
-                self.add_command("G64 P%f Q%f" % (motion_tolerance, naive_tolerance),
-                                 "continuous mode with tolerance and cleanup")
-        else:
-            assert False, "Invalid corner style requested: {}".format(path_mode)
+        pass
